@@ -1,6 +1,6 @@
 # Morpheus Morpheus Uplink Plugin
 
-This plugin provides IPAM and DNS integration between [Morpheus Uplink](https://morpheusdata.com) and [Morpheus](https://morpheusdata.com). It enables remote Morpheus network pool sync, DNS zone and record sync, IPv4 and IPv6 pool types, optional existing IP inventory, and host record allocation from within the Morpheus platform.
+This plugin allows different [Morpheus](https://morpheusdata.com) instances to sync data. It currently enables network pool sync, DNS zone and record sync, IPv4 and IPv6 pool types, optional existing IP inventory, and shared host record allocation.
 
 ## Requirements
 
