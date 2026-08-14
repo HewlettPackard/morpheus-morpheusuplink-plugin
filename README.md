@@ -1,73 +1,130 @@
-# Morpheus Morpheus Uplink Plugin
+# Morpheus Uplink Plugin
 
-This plugin allows different [Morpheus](https://morpheusdata.com) instances to sync data. It currently enables network pool sync, DNS zone and record sync, IPv4 and IPv6 pool types, optional existing IP inventory, and shared host record allocation.
+The Morpheus Uplink Plugin integrates one Morpheus appliance with another Morpheus appliance acting as an upstream IPAM and DNS provider. This allows a downstream Morpheus instance to allocate IP addresses and manage DNS records from pools and zones managed in a separate upstream Morpheus instance, using the upstream Morpheus REST API.
 
-## Requirements
+## Table of Contents
 
-| Component | Minimum Version |
-|-----------|----------------|
-| Morpheus | 7.0.2 |
+- [Features](#features)
+- [Requirements](#requirements)
+- [Repository structure](#repository-structure)
+- [Building the plugin](#building-the-plugin)
+- [License](#license)
+- [Installing](#installing)
+- [Detailed Usage Steps](#detailed-usage-steps)
+- [API Endpoints](#api-endpoints)
 
-## Installation
-
-1. Download the latest `.jar` from the [Releases](https://github.com/HewlettPackard/morpheus-morpheusuplink-plugin/releases) page, or [build it yourself](#building).
-2. In Morpheus, navigate to **Administration → Integrations → Plugins**.
-3. Click **Browse** and upload the `.jar` file.
-4. The **Morpheus Uplink** IPAM and DNS integration will appear after the plugin loads.
-
-## Configuration
-
-When adding a Morpheus Uplink IPAM integration in Morpheus (**Infrastructure → Network → IPAM Integrations**), provide the following:
-
-| Field | Description |
-|-------|-------------|
-| **API Url** | Remote Morpheus API endpoint URL, e.g. `https://x.x.x.x/`. |
-| **Credentials** | Select whether to use local username/password values or a stored Morpheus username/password credential. |
-| **Username** | Remote Morpheus username when using local credentials. |
-| **Password** | Remote Morpheus password when using local credentials. |
-| **Throttle Rate** | Optional request throttle rate for remote Morpheus API calls. |
-| **Disable SSL SNI Verification** | Disable SSL SNI verification for the remote Morpheus endpoint. |
-| **Inventory Existing** | Sync existing remote Morpheus IP and DNS records into local Morpheus inventory. |
-| **Zone Filter** | Optional comma-delimited list of DNS zones to sync. |
-| **Network Filter** | Optional comma-delimited list of network pools to sync. |
+---
 
 ## Features
 
-### IPAM Integration
+### Morpheus Uplink IPAM Provider
 
-The plugin registers an `IPAMProvider` named **Morpheus Uplink**. The following resources are discovered and kept in sync from the remote Morpheus appliance:
+Allocate and release IP addresses from network pools managed on an upstream Morpheus appliance. Supports automatic next-available IP selection and existing inventory import.
 
-- **Network Pools** — remote Morpheus network pools are synchronized into local Morpheus network pools.
-- **IPv4 and IPv6 Pool Types** — separate Morpheus Uplink and Morpheus Uplink IPv6 pool types are registered.
-- **Pool Ranges** — CIDR, start address, end address, and address count details are mapped onto Morpheus network pool ranges.
-- **Existing IP Inventory** — when enabled, remote network pool IP records are synchronized into local Morpheus pool IP records.
-- **Network Filters** — optional network pool filters limit which remote pools are synchronized.
+### DNS Record Management
 
-### DNS Integration
+Create and delete DNS records in DNS domains managed on the upstream Morpheus appliance when instances are provisioned or decommissioned on the downstream appliance.
 
-The plugin also implements `DNSProvider`. The following DNS resources are discovered and kept in sync from the remote Morpheus appliance:
+### Cloud Sync
 
-- **DNS Zones** — remote network domains are synchronized into local Morpheus domains.
-- **DNS Records** — when existing inventory is enabled, A, AAAA, PTR, TXT, CNAME, and MX records are synchronized.
-- **Zone Filters** — optional zone filters limit which remote domains are synchronized.
+Morpheus synchronises the following resources from the upstream appliance for inventory:
 
-### Host Record Management
+- Network pools and IP allocations
+- DNS domains and records
 
-Morpheus can allocate and release addresses through the remote Morpheus appliance during provisioning workflows. Supported operations include:
+---
 
-- Create a requested IPv4 or IPv6 address in a remote network pool.
-- Allocate the next available address from a remote network pool.
-- Update hostnames on remote network pool IP records.
-- Delete remote network pool IP records when releasing addresses.
+## Requirements
 
-## Building
+| Requirement | Version |
+|-------------|---------|
+| Morpheus | 7.0.2 or later |
+| Java | 11 or later |
+| Gradle | Use the included Gradle wrapper (`./gradlew`) |
 
-```bash
-./gradlew shadowJar
+Additional prerequisites:
+
+- An upstream Morpheus appliance accessible over HTTP or HTTPS from the downstream Morpheus appliance
+- A user account on the upstream appliance with API access and sufficient permissions to manage network pools and DNS domains
+- Network access from the downstream Morpheus appliance to the upstream appliance on the configured port
+
+---
+
+## Repository structure
+
+```
+src/main/groovy/com/morpheusdata/morpheusremote/
+├── MorpheusUplinkPlugin.groovy       - Plugin entry point; registers MorpheusUplinkIpamProvider
+└── MorpheusUplinkIpamProvider.groovy - IPAMProvider implementation; IPAM and DNS operations, sync, OptionTypes
+build.gradle, gradle.properties       - Build configuration and plugin metadata
 ```
 
-The plugin JAR will be written to `build/libs/`.
+---
+
+## Building the plugin
+
+Run the following command to compile and package the plugin jar:
+
+```bash
+./gradlew clean build
+```
+
+The packaged jar will be written to `build/libs/`.
+
+To execute tests, use the following command:
+
+```bash
+./gradlew test
+```
+
+---
 
 ## License
 
-Copyright 2022 Morpheus Data, LLC. Licensed under the [Apache License, Version 2.0](LICENSE).
+This project is licensed under the Apache License 2.0.
+
+See the [LICENSE](LICENSE) file for details.
+
+---
+
+## Installing
+
+1. Build the plugin (see [Building the plugin](#building-the-plugin)) or download a released jar.
+2. In Morpheus, navigate to **Administration > Integrations > Plugins**.
+3. Click **Add** and upload the `morpheus-morpheusuplink-plugin-<version>.jar` from `build/libs/`.
+4. Navigate to **Infrastructure > Networks > IP Pools > Add** and select **Morpheus Uplink** to configure the integration.
+
+---
+
+## Detailed Usage Steps
+
+### Adding a Morpheus Uplink IPAM Integration
+
+1. Go to **Infrastructure > Networks > IP Pools > Add**.
+2. Select **Morpheus Uplink** as the pool server type.
+3. Enter the **Service URL** of the upstream Morpheus appliance (e.g. `https://upstream-morpheus.example.com`) and credentials for the upstream API user.
+4. Save. The downstream Morpheus syncs network pools and DNS domains from the upstream appliance.
+
+### Allocating an IP Address
+
+When provisioning an instance on a network backed by a Morpheus Uplink pool, the downstream Morpheus calls the upstream Morpheus API to allocate the next available IP. DNS records are created on the upstream appliance if DNS is configured.
+
+### Releasing an IP Address
+
+When an instance is decommissioned, the downstream Morpheus calls the upstream API to release the IP and delete associated DNS records.
+
+---
+
+## API Endpoints
+
+This plugin communicates with the **Morpheus REST API** on the upstream Morpheus appliance at the configured service URL. Authentication uses an API access token or username/password.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `api/networks/pools/` | GET | List network pools |
+| `api/networks/pools/{id}/ips` | POST | Allocate an IP address from a pool |
+| `api/networks/pools/{id}/ips/{ipId}` | DELETE | Release an IP address |
+| `api/networks/domains/` | GET | List DNS domains |
+| `api/networks/domains/{id}/records` | GET | List DNS records in a domain |
+| `api/networks/domains/{id}/records` | POST | Create a DNS record |
+| `api/networks/domains/{id}/records/{recordId}` | DELETE | Delete a DNS record |
